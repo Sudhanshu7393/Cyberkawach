@@ -1,0 +1,60 @@
+[
+  {
+    "id": "019aff73-f134-45ff-b498-78dff0b5f3a5",
+    "timestamp": "2026-08-29T18:26:54.917Z",
+    "url": "https://www.google.com/",
+    "category": "BENIGN",
+    "verdict": "LEGITIMATE / SAFE WEBSITE",
+    "risk_score": 2.5,
+    "severity": "LOW",
+    "is_threat": false,
+    "lexical_features": {
+      "url": "https://www.google.com/",
+      "url_length": 23,
+      "host_length": 14,
+      "has_ip": 0,
+      "has_at_symbol": 0,
+      "has_double_slash": 0,
+      "hyphen_count": 0,
+      "dot_count": 2,
+      "subdomain_count": 1,
+      "is_https": 1,
+      "entropy": 3.642,
+      "matched_keywords": [],
+      "has_malware_ext": 0
+    },
+    "threat_indicators": [
+      "Standard domain structure and legitimate SSL encryption verified"
+    ],
+    "entropy": 3.642
+  },
+  {
+    "id": "8774b9c9-f04b-435e-b513-25ccdce95eba",
+    "timestamp": "2026-08-29T18:26:11.018Z",
+    "url": "www.google.com",
+    "category": "BENIGN",
+    "verdict": "LEGITIMATE / SAFE WEBSITE",
+    "risk_score": 17,
+    "severity": "LOW",
+    "is_threat": false,
+    "lexical_features": {
+      "url": "www.google.com",
+      "url_length": 14,
+      "host_length": 14,
+      "has_ip": 0,
+      "has_at_symbol": 0,
+      "has_double_slash": 0,
+      "hyphen_count": 0,
+      "dot_count": 2,
+      "subdomain_count": 1,
+      "is_https": 0,
+      "entropy": 2.842,
+      "matched_keywords": [],
+      "has_malware_ext": 0
+    },
+    "threat_indicators": [
+      "Insecure HTTP protocol (No SSL/TLS encryption)"
+    ],
+    "entropy": 2.842
+  }
+]
