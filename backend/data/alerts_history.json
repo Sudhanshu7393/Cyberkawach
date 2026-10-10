@@ -1,0 +1,18 @@
+[
+  {
+    "id": "ALT_1791605709440_mh92",
+    "timestamp": "2026-10-10T04:15:05.963Z",
+    "userId": "USR_INSTA_VICTIM",
+    "targetEmail": "victim_account@cyberkawach.org",
+    "targetPhone": "+91 98765 43210",
+    "emailStatus": "DELIVERED",
+    "smsStatus": "DELIVERED",
+    "previewUrl": "https://ethereal.email/message/asm7vUYSGgV8R2RTasm7wLJrKujo9J77AAAAAfmj.v1ql5n8Qp5l9CEyvbw",
+    "messageId": "<2f6cac09-7013-b38f-815b-c7042cd44c63@cyberkawach.org>",
+    "riskScore": 95.4,
+    "ipAddress": "45.142.122.9",
+    "country": "RU",
+    "threatVector": "Credential Stuffing & Auth Brute-Force Spray",
+    "smsMessage": "[CyberKawach Alert] Anomaly detected on user USR_INSTA_VICTIM. 18 failed logins from IP 45.142.122.9. Account quarantined."
+  }
+]

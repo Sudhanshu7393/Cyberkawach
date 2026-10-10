@@ -1,3 +1,4 @@
+import { dispatchSecurityAlert } from '../services/alert_dispatcher.js';
 ﻿import express from 'express';
 import axios from 'axios';
 import multer from 'multer';

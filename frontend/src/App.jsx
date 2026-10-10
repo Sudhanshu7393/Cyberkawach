@@ -1,3 +1,4 @@
+import AlertCenterModal from './components/AlertCenterModal';
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import axios from 'axios';
 import Navbar from './components/Navbar';
@@ -18,6 +19,9 @@ export default function App() {
   const [isClearing, setIsClearing] = useState(false);
   const [dbStatus, setDbStatus] = useState('Local Storage');
   const [liveStreamActive, setLiveStreamActive] = useState(false);
+  const [alertModalOpen, setAlertModalOpen] = useState(false);
+  const [alertCount, setAlertCount] = useState(0);
+  const [alertToast, setAlertToast] = useState(null);
 
   const streamIntervalRef = useRef(null);
 
@@ -31,6 +35,10 @@ export default function App() {
 
       if (statsRes.data?.data) setStats(statsRes.data.data);
       if (logsRes.data?.data) setLogs(logsRes.data.data);
+      try {
+        const altRes = await axios.get('/api/alerts/history');
+        if (altRes.data?.alerts) setAlertCount(altRes.data.alerts.length);
+      } catch (e) {}
     } catch (err) {
       console.error('Error fetching data:', err);
     } finally {
@@ -142,6 +150,21 @@ export default function App() {
     try {
       const res = await axios.post('/api/logs/upload', payload);
       await fetchData();
+      if (res.data?.ml_inference?.is_anomaly) {
+        setAlertToast({
+          title: '🚨 Critical Intrusion Detected!',
+          msg: `Security alert email & SMS dispatched to user for IP ${payload.ip_address} (${payload.country})`
+        });
+        setTimeout(() => setAlertToast(null), 5000);
+
+        if ('Notification' in window && Notification.permission === 'granted') {
+          new Notification('🚨 CyberKawach Security Alert', {
+            body: `Unauthorized attack detected on ID ${payload.user_id} from ${payload.ip_address}. Account protected.`
+          });
+        } else if ('Notification' in window && Notification.permission !== 'denied') {
+          Notification.requestPermission();
+        }
+      }
       return res.data;
     } catch (err) {
       console.error('Simulation error:', err);
@@ -184,6 +207,8 @@ export default function App() {
         isRefreshing={isRefreshing}
         liveStreamActive={liveStreamActive}
         setLiveStreamActive={setLiveStreamActive}
+        onOpenAlerts={() => setAlertModalOpen(true)}
+        alertCount={alertCount}
       />
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 relative z-10">
@@ -225,6 +250,22 @@ export default function App() {
         {activeView === 'url-scanner' && (
           <UrlScanner onBack={() => setActiveView('home')} />
         )}
+      {/* Real-Time Alert Toast Notification */}
+        {alertToast && (
+          <div className="fixed bottom-6 right-6 z-50 p-4 rounded-2xl bg-rose-950/95 border border-rose-500/50 shadow-2xl text-left max-w-sm animate-bounce space-y-1">
+            <div className="flex items-center justify-between">
+              <strong className="text-xs font-bold text-rose-300 font-mono uppercase">{alertToast.title}</strong>
+              <button onClick={() => setAlertModalOpen(true)} className="text-[10px] text-amber-400 font-bold hover:underline">View Alert &rarr;</button>
+            </div>
+            <p className="text-[11px] text-slate-200 font-sans leading-tight">{alertToast.msg}</p>
+          </div>
+        )}
+
+        <AlertCenterModal
+          isOpen={alertModalOpen}
+          onClose={() => setAlertModalOpen(false)}
+          lastIncident={logs?.[0]}
+        />
       </main>
 
       {/* Clean Cybersecurity Production Footer */}

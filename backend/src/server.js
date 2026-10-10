@@ -1,3 +1,4 @@
+import alertsRouter from './routes/alerts.js';
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
@@ -30,6 +31,7 @@ app.use('/api/logs', logsRouter);
 app.use('/api/predictions', predictionsRouter);
 app.use('/api/search', searchRouter);
 app.use('/api/url', urlScannerRouter);
+app.use('/api/alerts', alertsRouter);
 
 // Global Error Handler
 app.use((err, req, res, next) => {

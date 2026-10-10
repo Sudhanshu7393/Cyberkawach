@@ -8,6 +8,8 @@ export default function Navbar({
   onRefresh,
   isRefreshing,
   liveStreamActive,
+  onOpenAlerts,
+  alertCount = 0,
   setLiveStreamActive
 }) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -71,6 +73,20 @@ export default function Navbar({
 
           {/* Right Controls */}
           <div className="hidden sm:flex items-center gap-3">
+            <button
+              onClick={onOpenAlerts}
+              title="Victim Incident Alerts"
+              className="px-3 py-1.5 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 text-rose-300 border border-rose-500/30 text-xs font-mono font-bold transition cursor-pointer flex items-center gap-1.5 relative"
+            >
+              <span className="w-2 h-2 rounded-full bg-rose-400 animate-ping" />
+              <span>Incident Alerts</span>
+              {alertCount > 0 && (
+                <span className="px-1.5 py-0.2 rounded-full bg-rose-500 text-white text-[10px] font-bold">
+                  {alertCount}
+                </span>
+              )}
+            </button>
+
             <button
               onClick={onRefresh}
               disabled={isRefreshing}
