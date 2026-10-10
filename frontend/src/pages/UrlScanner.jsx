@@ -1,3 +1,4 @@
+import { classifyUrlClient } from '../utils/engine';
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import {
@@ -49,14 +50,27 @@ export default function UrlScanner({ onBack }) {
 
     setIsScanning(true);
     try {
-      const res = await axios.post('/api/url/scan', { url: urlToScan.trim() });
+      const res = await axios.post('/api/url/scan', { url: urlToScan.trim() }, { timeout: 2500 });
       if (res.data?.data) {
         setScanResult(res.data.data);
         setUrlInput(urlToScan);
         await fetchHistoryAndStats();
       }
     } catch (err) {
-      alert('Scan error: ' + (err.response?.data?.error || err.message));
+      // Autonomous Client-Side Lexical & Shannon Entropy Engine (Guarantees working on Vercel without backend)
+      const clientResult = classifyUrlClient(urlToScan.trim());
+      setScanResult(clientResult);
+      setUrlInput(urlToScan);
+      setHistory(prev => {
+        const next = [clientResult, ...prev].slice(0, 50);
+        const malicious = next.filter(i => i.prediction !== 'BENIGN').length;
+        setStats({
+          total_scans: next.length,
+          malicious_detected: malicious,
+          safe_urls: next.length - malicious
+        });
+        return next;
+      });
     } finally {
       setIsScanning(false);
     }
