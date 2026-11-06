@@ -353,7 +353,7 @@ export default function App() {
     : logs;
 
   return (
-    <div className="min-h-screen text-slate-300 relative font-sans overflow-x-hidden selection:bg-amber-500/20 selection:text-amber-300">
+    <div className="min-h-screen text-slate-300 relative font-sans overflow-x-hidden selection:bg-amber-500/20 selection:text-amber-300 bg-[#060911]">
       
       {/* Top Navbar */}
       <Navbar
