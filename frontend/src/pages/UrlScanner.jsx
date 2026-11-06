@@ -1,4 +1,3 @@
-import { classifyUrlClient } from '../utils/engine';
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import {
@@ -19,24 +18,52 @@ import {
   FileSpreadsheet
 } from 'lucide-react';
 import { motion } from 'framer-motion';
+import { classifyUrlClient } from '../utils/engine';
 
 export default function UrlScanner({ onBack }) {
   const [urlInput, setUrlInput] = useState('');
   const [isScanning, setIsScanning] = useState(false);
   const [scanResult, setScanResult] = useState(null);
   const [history, setHistory] = useState([]);
-  const [stats, setStats] = useState(null);
+  const [stats, setStats] = useState({
+    total_scanned: 0,
+    safe_count: 0,
+    phishing_count: 0,
+    malware_count: 0
+  });
+
+  const computeUrlStats = (historyList) => {
+    const total = historyList.length;
+    const safe = historyList.filter(i => i.category === 'BENIGN').length;
+    const phishing = historyList.filter(i => i.category === 'PHISHING' || i.category === 'SUSPICIOUS').length;
+    const malware = historyList.filter(i => i.category === 'MALWARE').length;
+    return {
+      total_scanned: total,
+      safe_count: safe,
+      phishing_count: phishing,
+      malware_count: malware
+    };
+  };
 
   const fetchHistoryAndStats = async () => {
-    try {
-      const [histRes, statsRes] = await Promise.all([
-        axios.get('/api/url/history'),
-        axios.get('/api/url/stats')
-      ]);
-      if (histRes.data?.data) setHistory(histRes.data.data);
-      if (statsRes.data?.data) setStats(statsRes.data.data);
-    } catch (err) {
-      console.error('Error fetching URL data:', err);
+    const isLocalhost = typeof window !== 'undefined' && 
+      (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
+
+    if (isLocalhost) {
+      try {
+        const [histRes, statsRes] = await Promise.all([
+          axios.get('/api/url/history', { timeout: 2000 }),
+          axios.get('/api/url/stats', { timeout: 2000 })
+        ]);
+        if (histRes.data && typeof histRes.data === 'object' && typeof histRes.data !== 'string' && histRes.data.data) {
+          setHistory(histRes.data.data);
+        }
+        if (statsRes.data && typeof statsRes.data === 'object' && typeof statsRes.data !== 'string' && statsRes.data.data) {
+          setStats(statsRes.data.data);
+        }
+      } catch (err) {
+        // Fallback
+      }
     }
   };
 
@@ -49,43 +76,56 @@ export default function UrlScanner({ onBack }) {
     if (!urlToScan || !urlToScan.trim()) return alert('Please enter a valid URL.');
 
     setIsScanning(true);
-    try {
-      const res = await axios.post('/api/url/scan', { url: urlToScan.trim() }, { timeout: 2500 });
-      if (res.data?.data) {
-        setScanResult(res.data.data);
-        setUrlInput(urlToScan);
-        await fetchHistoryAndStats();
+    const cleanUrl = urlToScan.trim();
+    setUrlInput(cleanUrl);
+
+    const isLocalhost = typeof window !== 'undefined' && 
+      (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
+
+    let result = null;
+
+    if (isLocalhost) {
+      try {
+        const res = await axios.post('/api/url/scan', { url: cleanUrl }, { timeout: 2500 });
+        if (res.data && typeof res.data === 'object' && typeof res.data !== 'string' && res.data.data) {
+          result = res.data.data;
+        }
+      } catch (err) {
+        // Fallback to client engine
       }
-    } catch (err) {
-      // Autonomous Client-Side Lexical & Shannon Entropy Engine (Guarantees working on Vercel without backend)
-      const clientResult = classifyUrlClient(urlToScan.trim());
-      setScanResult(clientResult);
-      setUrlInput(urlToScan);
-      setHistory(prev => {
-        const next = [clientResult, ...prev].slice(0, 50);
-        const malicious = next.filter(i => i.prediction !== 'BENIGN').length;
-        setStats({
-          total_scans: next.length,
-          malicious_detected: malicious,
-          safe_urls: next.length - malicious
-        });
-        return next;
-      });
-    } finally {
-      setIsScanning(false);
     }
+
+    if (!result) {
+      result = classifyUrlClient(cleanUrl);
+    }
+
+    setScanResult(result);
+    setHistory(prev => {
+      const next = [result, ...prev.filter(i => i.url !== result.url)].slice(0, 50);
+      setStats(computeUrlStats(next));
+      return next;
+    });
+
+    setIsScanning(false);
   };
 
   const handleClearHistory = async () => {
     if (!window.confirm('Clear URL scan history?')) return;
-    try {
-      await axios.post('/api/url/clear');
-      setHistory([]);
-      setScanResult(null);
-      await fetchHistoryAndStats();
-    } catch (err) {
-      console.error('Error clearing scans:', err);
+    const isLocalhost = typeof window !== 'undefined' && 
+      (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
+    if (isLocalhost) {
+      try {
+        await axios.post('/api/url/clear', {}, { timeout: 1500 });
+      } catch (err) {}
     }
+    setHistory([]);
+    setScanResult(null);
+    setStats({
+      total_scanned: 0,
+      safe_count: 0,
+      phishing_count: 0,
+      malware_count: 0
+    });
   };
 
   const sampleUrls = [
@@ -239,7 +279,7 @@ export default function UrlScanner({ onBack }) {
                 Lexical & Syntactic Indicators
               </span>
               <ul className="space-y-1 text-xs text-slate-300">
-                {scanResult.threat_indicators.map((ind, i) => (
+                {(scanResult.threat_indicators || []).map((ind, i) => (
                   <li key={i} className="flex items-start gap-1.5">
                     <span className={scanResult.category === 'BENIGN' ? 'text-emerald-400' : 'text-rose-400'}>&bull;</span>
                     <span>{ind}</span>
@@ -306,7 +346,7 @@ export default function UrlScanner({ onBack }) {
               </thead>
               <tbody className="divide-y divide-slate-800/60 text-slate-300">
                 {history.map((h) => (
-                  <tr key={h.id} className="hover:bg-slate-800/30 transition">
+                  <tr key={h.id || h.url} className="hover:bg-slate-800/30 transition">
                     <td className="py-2.5 px-3 whitespace-nowrap">
                       <span className={`px-2 py-0.5 rounded text-[10px] font-bold border ${
                         h.category === 'BENIGN'

@@ -17,65 +17,141 @@ export function calculateEntropy(str) {
   return parseFloat(ent.toFixed(3));
 }
 
-export function classifyUrlClient(url) {
-  const cleanUrl = url.trim();
-  const lower = cleanUrl.toLowerCase();
-  const entropy = calculateEntropy(cleanUrl);
+export function classifyUrlClient(rawUrl) {
+  const url = (rawUrl || '').trim();
+  let urlToParse = url;
+  if (!urlToParse.startsWith('http://') && !urlToParse.startsWith('https://')) {
+    urlToParse = 'http://' + urlToParse;
+  }
 
-  const isIp = /(?:https?:\/\/)?(?:\d{1,3}\.){3}\d{1,3}/.test(lower);
-  const hasAt = cleanUrl.includes('@');
-  const hasExe = /\.(exe|apk|bin|msi|bat|sh|scr|vbs|zip|rar)$/i.test(lower.split('?')[0]);
-  const isHttps = lower.startsWith('https://');
+  let hostname = '';
+  let pathStr = '';
+  let isHttps = 0;
+  try {
+    const parsed = new URL(urlToParse);
+    hostname = parsed.hostname || '';
+    pathStr = parsed.pathname || '';
+    isHttps = url.toLowerCase().startsWith('https://') ? 1 : 0;
+  } catch (e) {
+    hostname = url.replace(/^https?:\/\//i, '').split('/')[0].split(':')[0];
+  }
 
-  const parsedHost = cleanUrl.replace(/^https?:\/\//i, '').split('/')[0].split(':')[0];
-  const subdomains = Math.max(0, parsedHost.split('.').length - 2);
+  const urlLen = url.length;
+  const hostLen = hostname.length;
+  const hasIp = /^(?:[0-9]{1,3}\.){3}[0-9]{1,3}$/.test(hostname) ? 1 : 0;
+  const hasAtSymbol = url.includes('@') ? 1 : 0;
+  const hasDoubleSlash = pathStr.includes('//') ? 1 : 0;
+  const hyphenCount = (url.match(/-/g) || []).length;
+  const dotCount = (hostname.match(/\./g) || []).length;
+  const subdomainCount = Math.max(0, dotCount - 1);
+  const entropy = calculateEntropy(url);
 
-  const phishingWords = ['login', 'verify', 'update', 'banking', 'secure', 'account', 'signin', 'wallet', 'paypal', 'apple', 'netflix', 'crypto'];
-  const matchedKeywords = phishingWords.filter(w => lower.includes(w));
+  const suspiciousKeywords = [
+    'login', 'verify', 'account', 'banking', 'update', 'secure', 
+    'free', 'bonus', 'claim', 'wallet', 'crypto', 'password', 
+    'admin', 'auth', 'signin', 'paypal', 'appleid', 'netflix'
+  ];
+  const matchedKeywords = suspiciousKeywords.filter(kw => url.toLowerCase().includes(kw));
 
-  let risk = 12.0;
-  let prediction = 'BENIGN';
-  let desc = 'Standard verified domain layout. No deceptive lexical markers detected.';
+  const malwareExtensions = ['.exe', '.bin', '.scr', '.apk', '.bat', '.cmd', '.vbs', '.msi', '.iso'];
+  const hasMalwareExt = malwareExtensions.some(ext => url.toLowerCase().endsWith(ext) || pathStr.toLowerCase().endsWith(ext)) ? 1 : 0;
 
-  if (hasExe) {
-    risk = 96.5;
-    prediction = 'MALWARE';
-    desc = 'Direct binary executable download path detected. High risk of malicious payload drop.';
-  } else if (hasAt || (isIp && matchedKeywords.length > 0) || (matchedKeywords.length >= 2 && entropy > 3.8)) {
-    risk = 92.4;
-    prediction = 'PHISHING';
-    desc = 'Credential harvesting markers identified (@ symbol spoofing / suspicious subdomain nesting).';
-  } else if (isIp) {
-    risk = 74.0;
-    prediction = 'SUSPICIOUS';
-    desc = 'Direct IP host address bypassing standard DNS naming conventions.';
-  } else if (entropy > 4.3 || matchedKeywords.length >= 1) {
-    if (!isHttps && matchedKeywords.length >= 1) {
-      risk = 84.5;
-      prediction = 'PHISHING';
-      desc = 'Insecure HTTP transmission with sensitive authentication keywords detected.';
-    } else {
-      risk = 32.0;
-      prediction = 'BENIGN';
-      desc = 'Benign web portal with elevated character diversity.';
+  const features = {
+    url,
+    url_length: urlLen,
+    host_length: hostLen,
+    has_ip: hasIp,
+    has_at_symbol: hasAtSymbol,
+    has_double_slash: hasDoubleSlash,
+    hyphen_count: hyphenCount,
+    dot_count: dotCount,
+    subdomain_count: subdomainCount,
+    is_https: isHttps,
+    entropy,
+    matched_keywords: matchedKeywords,
+    has_malware_ext: hasMalwareExt
+  };
+
+  let score = 5.0;
+  const reasons = [];
+
+  if (hasIp === 1) {
+    score += 40.0;
+    reasons.push("Direct IP address used in host instead of legitimate domain");
+  }
+  if (hasAtSymbol === 1) {
+    score += 35.0;
+    reasons.push("URL contains '@' credential delimiter symbol (used in link spoofing)");
+  }
+  if (hasMalwareExt === 1) {
+    score += 55.0;
+    reasons.push("Direct executable / binary payload download path detected");
+  }
+  if (urlLen > 75) {
+    score += 18.0;
+    reasons.push(`Excessive URL length (${urlLen} characters)`);
+  }
+  if (subdomainCount >= 3) {
+    score += 22.0;
+    reasons.push(`High subdomain depth (${subdomainCount} subdomains)`);
+  }
+  if (hyphenCount >= 3) {
+    score += 15.0;
+    reasons.push(`Multiple deceptive hyphens (${hyphenCount} hyphens)`);
+  }
+  if (matchedKeywords.length > 0) {
+    score += matchedKeywords.length * 12.0;
+    reasons.push(`Targeted credential/banking keywords found: ${matchedKeywords.join(', ')}`);
+  }
+  if (entropy > 4.2) {
+    score += 14.0;
+    reasons.push(`High character entropy (${entropy}) - likely obfuscated/DGA string`);
+  }
+  if (isHttps === 0) {
+    score += 12.0;
+    reasons.push("Insecure HTTP protocol (No SSL/TLS encryption)");
+  } else {
+    score -= 5.0;
+  }
+
+  const riskScore = parseFloat(Math.min(99.9, Math.max(2.5, score)).toFixed(1));
+
+  let category = 'BENIGN';
+  let verdict = 'LEGITIMATE / SAFE WEBSITE';
+  let severity = 'LOW';
+
+  if (hasMalwareExt === 1 || (hasIp === 1 && riskScore >= 70)) {
+    category = 'MALWARE';
+    verdict = 'MALICIOUS MALWARE HOST';
+    severity = 'CRITICAL';
+  } else if (riskScore >= 50.0) {
+    category = 'PHISHING';
+    verdict = 'DECEPTIVE PHISHING PAGE';
+    severity = 'HIGH';
+  } else if (riskScore >= 25.0) {
+    category = 'SUSPICIOUS';
+    verdict = 'SUSPICIOUS WEB LINK';
+    severity = 'MEDIUM';
+  } else {
+    category = 'BENIGN';
+    verdict = 'LEGITIMATE / SAFE WEBSITE';
+    severity = 'LOW';
+    if (reasons.length === 0) {
+      reasons.push("Standard domain structure and legitimate SSL encryption verified");
     }
   }
 
   return {
-    url: cleanUrl,
-    prediction,
-    risk_score: risk,
-    lexical_features: {
-      url_length: cleanUrl.length,
-      subdomain_count: subdomains,
-      has_at_symbol: hasAt ? 1 : 0,
-      has_ip_address: isIp ? 1 : 0,
-      has_malicious_extension: hasExe ? 1 : 0,
-      is_https: isHttps ? 1 : 0,
-      character_entropy: entropy,
-      suspicious_keywords_found: matchedKeywords
-    },
-    threat_description: desc,
+    id: 'URL_' + Date.now(),
+    url,
+    category,
+    verdict,
+    risk_score: riskScore,
+    severity,
+    is_threat: category !== 'BENIGN',
+    lexical_features: features,
+    threat_indicators: reasons,
+    entropy,
     timestamp: new Date().toISOString()
   };
 }
@@ -199,4 +275,88 @@ export function generateRandomPacket() {
   flow.is_anomaly = evalResult.is_anomaly;
   flow.root_cause = evalResult.root_cause;
   return flow;
+}
+
+export function createAlertRecord(incidentData, email = 'victim_account@cyberkawach.org', phone = '+91 98765 43210') {
+  const userId = incidentData.user_id || 'ACCOUNT_HOLDER';
+  const ip = incidentData.ip_address || '45.142.122.9';
+  const country = incidentData.country || 'Unknown';
+  const score = incidentData.risk_score || incidentData.ml_inference?.risk_score || 95.4;
+  const rootCause = incidentData.root_cause || incidentData.ml_inference?.root_cause || 'Unauthorized Authentication Spray';
+  const failedLogins = incidentData.failed_login_count ?? 18;
+  const timestamp = new Date().toISOString();
+
+  const previewHtml = `<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"><title>CyberKawach Incident Dispatch</title></head>
+<body style="margin: 0; padding: 24px; background: #070B12; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
+  <div style="background-color: #0f172a; color: #f8fafc; padding: 28px; border-radius: 16px; max-width: 620px; margin: auto; border: 1px solid rgba(239, 68, 68, 0.4); box-shadow: 0 20px 40px rgba(0,0,0,0.6);">
+    <div style="border-bottom: 2px solid #ef4444; padding-bottom: 14px; margin-bottom: 20px;">
+      <h2 style="color: #ef4444; margin: 0; font-size: 20px;">
+        🚨 Critical Security Anomaly Detected
+      </h2>
+      <p style="color: #94a3b8; font-size: 13px; margin: 6px 0 0 0;">CyberKawach Automated Incident Response Engine &bull; Ref #${Date.now().toString().slice(-6)}</p>
+    </div>
+
+    <p style="font-size: 14px; line-height: 1.6; margin-top: 0;">
+      Dear <strong>${userId}</strong>,
+    </p>
+    <p style="font-size: 14px; line-height: 1.6; color: #cbd5e1;">
+      Our real-time Machine Learning sensor (Layer 1: Isolation Forest) has detected an active unauthorized access anomaly targeting your credentials:
+    </p>
+
+    <table style="width: 100%; border-collapse: collapse; margin: 20px 0; font-size: 13px; background-color: #1e293b; border-radius: 10px; overflow: hidden;">
+      <tr style="border-bottom: 1px solid #334155;">
+        <td style="padding: 12px; color: #94a3b8;">Risk Anomaly Score:</td>
+        <td style="padding: 12px; color: #ef4444; font-weight: bold; font-family: monospace; font-size: 14px;">${score} / 100 (CRITICAL)</td>
+      </tr>
+      <tr style="border-bottom: 1px solid #334155;">
+        <td style="padding: 12px; color: #94a3b8;">Threat Vector:</td>
+        <td style="padding: 12px; color: #f59e0b; font-weight: bold;">${rootCause}</td>
+      </tr>
+      <tr style="border-bottom: 1px solid #334155;">
+        <td style="padding: 12px; color: #94a3b8;">Source IP & Origin:</td>
+        <td style="padding: 12px; color: #38bdf8; font-family: monospace;">${ip} (${country})</td>
+      </tr>
+      <tr style="border-bottom: 1px solid #334155;">
+        <td style="padding: 12px; color: #94a3b8;">Failed Password Count:</td>
+        <td style="padding: 12px; color: #f87171; font-weight: bold;">${failedLogins} attempts in rapid succession</td>
+      </tr>
+      <tr>
+        <td style="padding: 12px; color: #94a3b8;">Timestamp:</td>
+        <td style="padding: 12px; color: #cbd5e1; font-family: monospace;">${new Date(timestamp).toLocaleString()}</td>
+      </tr>
+    </table>
+
+    <div style="background-color: rgba(239, 68, 68, 0.12); border: 1px solid #ef4444; padding: 14px; border-radius: 10px; margin-bottom: 20px;">
+      <strong style="color: #f87171; display: block; margin-bottom: 6px; font-size: 13px;">⚡ Automated Defense Actions Taken:</strong>
+      <ul style="margin: 0; padding-left: 20px; font-size: 13px; color: #fca5a5; line-height: 1.6;">
+        <li>Session token immediately invalidated across all active nodes.</li>
+        <li>Temporary rate-limit quarantine applied to origin IP ${ip}.</li>
+        <li>Mandatory 2FA challenge initiated on your next login attempt.</li>
+      </ul>
+    </div>
+
+    <p style="font-size: 12px; color: #64748b; text-align: center; margin-top: 24px; border-top: 1px solid #334155; padding-top: 14px;">
+      CyberKawach Dual-Layer Defense Platform &bull; BCS554 Project &bull; ABESEC Dept of CSE
+    </p>
+  </div>
+</body>
+</html>`;
+
+  return {
+    id: `ALT_${Date.now()}_${Math.random().toString(36).substr(2, 4)}`,
+    timestamp,
+    userId,
+    targetEmail: email,
+    targetPhone: phone,
+    emailStatus: 'DELIVERED',
+    smsStatus: 'DELIVERED',
+    previewHtml,
+    riskScore: score,
+    ipAddress: ip,
+    country,
+    threatVector: rootCause,
+    smsMessage: `[CyberKawach Alert] Anomaly detected on user ${userId}. ${failedLogins} failed logins from IP ${ip}. Account quarantined.`
+  };
 }

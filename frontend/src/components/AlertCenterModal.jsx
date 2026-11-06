@@ -1,51 +1,42 @@
-import React, { useState, useEffect } from 'react';
-import axios from 'axios';
-import { Mail, MessageSquare, ShieldAlert, CheckCircle2, X, ExternalLink, Settings, RefreshCw, Zap } from 'lucide-react';
+import React, { useState } from 'react';
+import { Mail, MessageSquare, ShieldAlert, CheckCircle2, X, ExternalLink, Settings, RefreshCw, Trash2 } from 'lucide-react';
 
-export default function AlertCenterModal({ isOpen, onClose }) {
-  const [alerts, setAlerts] = useState([]);
-  const [config, setConfig] = useState({
-    recipientEmail: 'victim_account@cyberkawach.org',
-    recipientPhone: '+91 98765 43210',
-    autoDispatch: true
-  });
+export default function AlertCenterModal({ 
+  isOpen, 
+  onClose, 
+  alerts = [], 
+  onClearAlerts,
+  config = { recipientEmail: 'victim_account@cyberkawach.org', recipientPhone: '+91 98765 43210', autoDispatch: true },
+  onSaveConfig
+}) {
+  const [localConfig, setLocalConfig] = useState(config);
   const [isSaving, setIsSaving] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(null);
 
-  const fetchAlertData = async () => {
-    try {
-      const [historyRes, configRes] = await Promise.all([
-        axios.get('/api/alerts/history'),
-        axios.get('/api/alerts/config')
-      ]);
-      if (historyRes.data?.alerts) setAlerts(historyRes.data.alerts);
-      if (configRes.data?.config) setConfig(configRes.data.config);
-    } catch (e) {
-      console.error('Fetch alerts error:', e);
-    }
-  };
+  if (!isOpen) return null;
 
-  useEffect(() => {
-    if (isOpen) {
-      fetchAlertData();
-    }
-  }, [isOpen]);
-
-  const handleSaveConfig = async (e) => {
+  const handleSubmit = (e) => {
     e.preventDefault();
     setIsSaving(true);
-    try {
-      await axios.post('/api/alerts/config', config);
-      setSaveSuccess('Target contact updated! Future anomalies will auto-dispatch to this address.');
-      setTimeout(() => setSaveSuccess(null), 3500);
-    } catch (e) {
-      console.error(e);
-    } finally {
-      setIsSaving(false);
+    if (onSaveConfig) {
+      onSaveConfig(localConfig);
     }
+    setSaveSuccess('Target contact updated! Future anomalies will auto-dispatch to this address.');
+    setTimeout(() => {
+      setSaveSuccess(null);
+      setIsSaving(false);
+    }, 2500);
   };
 
-  if (!isOpen) return null;
+  const handleViewEmail = (alt) => {
+    if (alt.previewUrl) {
+      window.open(alt.previewUrl, '_blank');
+    } else if (alt.previewHtml) {
+      const blob = new Blob([alt.previewHtml], { type: 'text/html' });
+      const blobUrl = URL.createObjectURL(blob);
+      window.open(blobUrl, '_blank');
+    }
+  };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md">
@@ -79,7 +70,7 @@ export default function AlertCenterModal({ isOpen, onClose }) {
         </div>
 
         {/* Target User Contact Settings */}
-        <form onSubmit={handleSaveConfig} className="p-4 rounded-2xl bg-[#151D2A] border border-slate-800 space-y-3">
+        <form onSubmit={handleSubmit} className="p-4 rounded-2xl bg-[#151D2A] border border-slate-800 space-y-3">
           <div className="flex items-center justify-between">
             <span className="text-xs font-bold text-slate-200 font-mono uppercase flex items-center gap-1.5">
               <Settings className="w-3.5 h-3.5 text-amber-400" />
@@ -97,8 +88,8 @@ export default function AlertCenterModal({ isOpen, onClose }) {
               </label>
               <input
                 type="email"
-                value={config.recipientEmail}
-                onChange={(e) => setConfig({ ...config, recipientEmail: e.target.value })}
+                value={localConfig.recipientEmail}
+                onChange={(e) => setLocalConfig({ ...localConfig, recipientEmail: e.target.value })}
                 className="w-full bg-[#0D1117] border border-slate-700 rounded-xl px-3 py-2 text-xs text-white font-mono focus:outline-none focus:border-amber-400"
                 placeholder="victim_account@cyberkawach.org"
                 required
@@ -110,8 +101,8 @@ export default function AlertCenterModal({ isOpen, onClose }) {
               </label>
               <input
                 type="text"
-                value={config.recipientPhone}
-                onChange={(e) => setConfig({ ...config, recipientPhone: e.target.value })}
+                value={localConfig.recipientPhone}
+                onChange={(e) => setLocalConfig({ ...localConfig, recipientPhone: e.target.value })}
                 className="w-full bg-[#0D1117] border border-slate-700 rounded-xl px-3 py-2 text-xs text-white font-mono focus:outline-none focus:border-amber-400"
                 placeholder="+91 98765 43210"
                 required
@@ -121,12 +112,12 @@ export default function AlertCenterModal({ isOpen, onClose }) {
 
           <div className="flex items-center justify-between pt-1">
             <span className="text-[10px] text-slate-400 font-mono">
-              Jab bhi koi attack aayega, is email aur number par turant alert chala jayega.
+              Jab bhi koi attack detect hoga, is email aur phone par auto-dispatch hoga.
             </span>
             <button
               type="submit"
               disabled={isSaving}
-              className="px-4 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs font-mono transition cursor-pointer"
+              className="px-4 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs font-mono transition cursor-pointer disabled:opacity-50"
             >
               {isSaving ? 'Updating...' : 'Save Contact'}
             </button>
@@ -146,13 +137,16 @@ export default function AlertCenterModal({ isOpen, onClose }) {
             <span className="text-xs font-bold text-white font-mono uppercase tracking-wider flex items-center gap-2">
               <span>Auto-Dispatched Incidents ({alerts.length})</span>
             </span>
-            <button
-              onClick={fetchAlertData}
-              className="text-xs text-slate-400 hover:text-white flex items-center gap-1 font-mono cursor-pointer"
-            >
-              <RefreshCw className="w-3 h-3" />
-              <span>Refresh Feed</span>
-            </button>
+            {alerts.length > 0 && onClearAlerts && (
+              <button
+                type="button"
+                onClick={onClearAlerts}
+                className="text-xs text-rose-400 hover:text-rose-300 flex items-center gap-1 font-mono cursor-pointer"
+              >
+                <Trash2 className="w-3 h-3" />
+                <span>Clear Alert Ledger</span>
+              </button>
+            )}
           </div>
 
           {alerts.length === 0 ? (
@@ -192,16 +186,15 @@ export default function AlertCenterModal({ isOpen, onClose }) {
                       </span>
                     </div>
 
-                    {alt.previewUrl && (
-                      <a
-                        href={alt.previewUrl}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="text-amber-400 hover:underline flex items-center gap-1 text-[11px] font-bold"
+                    {(alt.previewUrl || alt.previewHtml) && (
+                      <button
+                        type="button"
+                        onClick={() => handleViewEmail(alt)}
+                        className="text-amber-400 hover:underline flex items-center gap-1 text-[11px] font-bold cursor-pointer"
                       >
                         <span>View Real Email HTML ↗</span>
                         <ExternalLink className="w-3 h-3" />
-                      </a>
+                      </button>
                     )}
                   </div>
                 </div>

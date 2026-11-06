@@ -1,4 +1,3 @@
-import AlertCenterModal from './components/AlertCenterModal';
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import axios from 'axios';
 import Navbar from './components/Navbar';
@@ -7,8 +6,12 @@ import MetricsBar from './components/MetricsBar';
 import ArchitectureMathSection from './components/ArchitectureMathSection';
 import SocConsole from './components/SocConsole';
 import UrlScanner from './pages/UrlScanner';
+import AlertCenterModal from './components/AlertCenterModal';
 import CyberKawachLogo from './components/CyberKawachLogo';
-import { generateRandomPacket, evaluateFlowClient } from './utils/engine';
+import { generateRandomPacket, evaluateFlowClient, createAlertRecord } from './utils/engine';
+
+const isLocalhost = typeof window !== 'undefined' && 
+  (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
 
 export default function App() {
   const [activeView, setActiveView] = useState('home');
@@ -26,20 +29,25 @@ export default function App() {
   const [isClearing, setIsClearing] = useState(false);
   const [liveStreamActive, setLiveStreamActive] = useState(false);
   const [alertModalOpen, setAlertModalOpen] = useState(false);
+  const [alerts, setAlerts] = useState([]);
   const [alertCount, setAlertCount] = useState(0);
   const [alertToast, setAlertToast] = useState(null);
+  const [alertConfig, setAlertConfig] = useState({
+    recipientEmail: 'victim_account@cyberkawach.org',
+    recipientPhone: '+91 98765 43210',
+    autoDispatch: true
+  });
 
   const streamIntervalRef = useRef(null);
-  const isBackendAvailable = useRef(true);
 
-  // Recalculate stats from local logs if backend is offline (e.g. running on Vercel)
+  // Recalculate stats dynamically from client logs
   const computeStatsFromLogs = (logList) => {
     const total = logList.length;
     const anomalies = logList.filter(l => l.is_anomaly || l.ml_inference?.is_anomaly).length;
     const normal = total - anomalies;
     const percentage = total > 0 ? ((anomalies / total) * 100).toFixed(1) : '0.0';
 
-    const timeline = logList.slice(0, 15).reverse().map((l, idx) => ({
+    const timeline = logList.slice(0, 15).reverse().map((l) => ({
       timestamp: new Date(l.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
       risk_score: l.risk_score ?? l.ml_inference?.risk_score ?? 10,
       is_anomaly: l.is_anomaly ?? l.ml_inference?.is_anomaly ?? false
@@ -54,7 +62,31 @@ export default function App() {
     };
   };
 
+  const triggerAlertNotification = (payload) => {
+    const newAlert = createAlertRecord(payload, alertConfig.recipientEmail, alertConfig.recipientPhone);
+    setAlerts(prev => [newAlert, ...prev]);
+    setAlertCount(c => c + 1);
+
+    setAlertToast({
+      title: '🚨 Critical Intrusion Detected!',
+      msg: `Security alert email & SMS auto-dispatched for IP ${payload.ip_address} (${payload.country || 'Unknown'})`
+    });
+    setTimeout(() => setAlertToast(null), 5000);
+
+    if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'granted') {
+      new Notification('🚨 CyberKawach Security Alert', {
+        body: `Unauthorized attack detected on ID ${payload.user_id} from ${payload.ip_address}. Account protected.`
+      });
+    } else if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission !== 'denied') {
+      Notification.requestPermission();
+    }
+  };
+
   const fetchData = useCallback(async () => {
+    if (!isLocalhost) {
+      // On Vercel / production, client-side state is source of truth
+      return;
+    }
     setIsRefreshing(true);
     try {
       const [statsRes, logsRes] = await Promise.all([
@@ -62,22 +94,22 @@ export default function App() {
         axios.get(`/api/predictions?limit=50&anomaly=${activeFilter === 'anomalies'}`, { timeout: 2000 })
       ]);
 
-      if (statsRes.data?.data) setStats(statsRes.data.data);
-      if (logsRes.data?.data) setLogs(logsRes.data.data);
-      isBackendAvailable.current = true;
+      if (statsRes.data && typeof statsRes.data === 'object' && statsRes.data.data) {
+        setStats(statsRes.data.data);
+      }
+      if (logsRes.data && typeof logsRes.data === 'object' && logsRes.data.data) {
+        setLogs(logsRes.data.data);
+      }
 
       try {
         const altRes = await axios.get('/api/alerts/history', { timeout: 1500 });
-        if (altRes.data?.alerts) setAlertCount(altRes.data.alerts.length);
+        if (altRes.data?.alerts && Array.isArray(altRes.data.alerts)) {
+          setAlerts(altRes.data.alerts);
+          setAlertCount(altRes.data.alerts.length);
+        }
       } catch (e) {}
     } catch (err) {
-      // Backend not running (Vercel public view on external device) -> Maintain client-side stats
-      isBackendAvailable.current = false;
-      setLogs(prev => {
-        const filtered = activeFilter === 'anomalies' ? prev.filter(l => l.is_anomaly || l.ml_inference?.is_anomaly) : prev;
-        setStats(computeStatsFromLogs(prev));
-        return filtered;
-      });
+      // Backend offline
     } finally {
       setIsRefreshing(false);
     }
@@ -85,58 +117,55 @@ export default function App() {
 
   // Clean dashboard on initial page load
   useEffect(() => {
-    const initClean = async () => {
-      try {
-        await axios.post('/api/predictions/clear', {}, { timeout: 1500 });
-      } catch (err) {
-        // Fallback: start with fresh state
-        setLogs([]);
-        setStats({
-          total_activities: 0,
-          anomalies_detected: 0,
-          normal_activities: 0,
-          anomaly_percentage: '0.0',
-          timeline: []
-        });
-      }
-      fetchData();
-    };
-    initClean();
+    setLogs([]);
+    setStats({
+      total_activities: 0,
+      anomalies_detected: 0,
+      normal_activities: 0,
+      anomaly_percentage: '0.0',
+      timeline: []
+    });
+    setAlerts([]);
+    setAlertCount(0);
+
+    if (isLocalhost) {
+      axios.post('/api/predictions/clear', {}, { timeout: 1500 }).catch(() => {});
+    }
   }, []);
 
+  // Poll backend if running on localhost
   useEffect(() => {
+    if (!isLocalhost) return;
     const interval = setInterval(fetchData, 4000);
     return () => clearInterval(interval);
   }, [fetchData]);
 
-  // Live Stream Handler (100% Autonomous on any device)
+  // Live Stream Handler (100% Autonomous on any device & Vercel)
   useEffect(() => {
     if (liveStreamActive) {
       streamIntervalRef.current = setInterval(async () => {
-        try {
-          if (isBackendAvailable.current) {
-            await axios.post('/api/logs/generate-sample?count=1&ratio=0.25', {}, { timeout: 2000 });
-            fetchData();
-          } else {
-            throw new Error('Using autonomous client stream');
+        if (isLocalhost) {
+          try {
+            const res = await axios.post('/api/logs/generate-sample?count=1&ratio=0.25', {}, { timeout: 2000 });
+            if (res.data && typeof res.data === 'object' && res.data.success) {
+              fetchData();
+              return;
+            }
+          } catch (err) {
+            // Backend offline -> run client engine
           }
-        } catch (err) {
-          // Autonomous generation
-          const packet = generateRandomPacket();
-          setLogs(prev => {
-            const nextLogs = [packet, ...prev].slice(0, 50);
-            setStats(computeStatsFromLogs(nextLogs));
-            return nextLogs;
-          });
+        }
 
-          if (packet.is_anomaly) {
-            setAlertCount(c => c + 1);
-            setAlertToast({
-              title: '🚨 Anomaly Detected & Dispatched',
-              msg: `Off-hours deviation detected for IP ${packet.ip_address} (${packet.country}). Security warning auto-dispatched.`
-            });
-            setTimeout(() => setAlertToast(null), 4000);
-          }
+        // Autonomous generation
+        const packet = generateRandomPacket();
+        setLogs(prev => {
+          const nextLogs = [packet, ...prev].slice(0, 50);
+          setStats(computeStatsFromLogs(nextLogs));
+          return nextLogs;
+        });
+
+        if (packet.is_anomaly) {
+          triggerAlertNotification(packet);
         }
       }, 2500);
     } else {
@@ -146,7 +175,7 @@ export default function App() {
     return () => {
       if (streamIntervalRef.current) clearInterval(streamIntervalRef.current);
     };
-  }, [liveStreamActive, fetchData]);
+  }, [liveStreamActive, fetchData, alertConfig]);
 
   const handleScenarioSimulation = async (scenario) => {
     let payload = {};
@@ -220,91 +249,107 @@ export default function App() {
       };
     }
 
-    try {
-      const res = await axios.post('/api/logs/upload', payload, { timeout: 2500 });
-      await fetchData();
-      if (res.data?.ml_inference?.is_anomaly) {
-        triggerAlertNotification(payload);
+    if (isLocalhost) {
+      try {
+        const res = await axios.post('/api/logs/upload', payload, { timeout: 2500 });
+        if (res.data && typeof res.data === 'object' && res.data.success) {
+          await fetchData();
+          if (res.data?.ml_inference?.is_anomaly) {
+            triggerAlertNotification(payload);
+          }
+          return res.data;
+        }
+      } catch (err) {
+        // Fall back to client evaluation
       }
-      return res.data;
-    } catch (err) {
-      // Offline / Vercel fallback evaluation
-      const inference = evaluateFlowClient(payload);
-      payload.ml_inference = inference;
-      payload.risk_score = inference.risk_score;
-      payload.is_anomaly = inference.is_anomaly;
-      payload.root_cause = inference.root_cause;
-
-      setLogs(prev => {
-        const nextLogs = [payload, ...prev].slice(0, 50);
-        setStats(computeStatsFromLogs(nextLogs));
-        return nextLogs;
-      });
-
-      if (payload.is_anomaly) {
-        setAlertCount(c => c + 1);
-        triggerAlertNotification(payload);
-      }
-      return { success: true, data: payload, ml_inference: inference };
     }
-  };
 
-  const triggerAlertNotification = (payload) => {
-    setAlertToast({
-      title: '🚨 Critical Intrusion Detected!',
-      msg: `Security alert email & SMS auto-dispatched for IP ${payload.ip_address} (${payload.country})`
+    // Offline / Vercel fallback evaluation
+    const inference = evaluateFlowClient(payload);
+    payload.ml_inference = inference;
+    payload.risk_score = inference.risk_score;
+    payload.is_anomaly = inference.is_anomaly;
+    payload.root_cause = inference.root_cause;
+
+    setLogs(prev => {
+      const nextLogs = [payload, ...prev].slice(0, 50);
+      setStats(computeStatsFromLogs(nextLogs));
+      return nextLogs;
     });
-    setTimeout(() => setAlertToast(null), 5000);
 
-    if ('Notification' in window && Notification.permission === 'granted') {
-      new Notification('🚨 CyberKawach Security Alert', {
-        body: `Unauthorized attack detected on ID ${payload.user_id} from ${payload.ip_address}. Account protected.`
-      });
-    } else if ('Notification' in window && Notification.permission !== 'denied') {
-      Notification.requestPermission();
+    if (payload.is_anomaly) {
+      triggerAlertNotification(payload);
     }
+    return { success: true, data: payload, ml_inference: inference };
   };
 
   const handleGenerateSample = async (count = 8, ratio = 0.25) => {
     setIsGenerating(true);
-    try {
-      await axios.post(`/api/logs/generate-sample?count=${count}&ratio=${ratio}`, {}, { timeout: 2500 });
-      await fetchData();
-    } catch (err) {
-      // Generate client-side samples
-      const packets = [];
-      for (let i = 0; i < count; i++) {
-        packets.push(generateRandomPacket());
+    if (isLocalhost) {
+      try {
+        const res = await axios.post(`/api/logs/generate-sample?count=${count}&ratio=${ratio}`, {}, { timeout: 2500 });
+        if (res.data && typeof res.data === 'object' && res.data.success) {
+          await fetchData();
+          setIsGenerating(false);
+          return;
+        }
+      } catch (err) {
+        // Fall through
       }
-      setLogs(prev => {
-        const nextLogs = [...packets, ...prev].slice(0, 50);
-        setStats(computeStatsFromLogs(nextLogs));
-        return nextLogs;
-      });
-    } finally {
-      setIsGenerating(false);
     }
+
+    // Generate client-side samples
+    const packets = [];
+    const newAlerts = [];
+    for (let i = 0; i < count; i++) {
+      const pkt = generateRandomPacket();
+      packets.push(pkt);
+      if (pkt.is_anomaly) {
+        newAlerts.push(createAlertRecord(pkt, alertConfig.recipientEmail, alertConfig.recipientPhone));
+      }
+    }
+    setLogs(prev => {
+      const nextLogs = [...packets, ...prev].slice(0, 50);
+      setStats(computeStatsFromLogs(nextLogs));
+      return nextLogs;
+    });
+
+    if (newAlerts.length > 0) {
+      setAlerts(prev => [...newAlerts, ...prev]);
+      setAlertCount(c => c + newAlerts.length);
+      setAlertToast({
+        title: `🚨 ${newAlerts.length} Anomaly Dispatches`,
+        msg: `${newAlerts.length} high-risk deviation flow(s) flagged and alerts recorded.`
+      });
+      setTimeout(() => setAlertToast(null), 4000);
+    }
+    setIsGenerating(false);
   };
 
   const handleClearLogs = async () => {
     if (!window.confirm('Clear all stored telemetry predictions?')) return;
     setIsClearing(true);
-    try {
-      await axios.post('/api/predictions/clear', {}, { timeout: 2000 });
-      await fetchData();
-    } catch (err) {
-      setLogs([]);
-      setStats({
-        total_activities: 0,
-        anomalies_detected: 0,
-        normal_activities: 0,
-        anomaly_percentage: '0.0',
-        timeline: []
-      });
-    } finally {
-      setIsClearing(false);
+    if (isLocalhost) {
+      try {
+        await axios.post('/api/predictions/clear', {}, { timeout: 2000 });
+      } catch (err) {}
     }
+    setLogs([]);
+    setStats({
+      total_activities: 0,
+      anomalies_detected: 0,
+      normal_activities: 0,
+      anomaly_percentage: '0.0',
+      timeline: []
+    });
+    setAlerts([]);
+    setAlertCount(0);
+    setIsClearing(false);
   };
+
+  const displayedLogs = activeFilter === 'anomalies'
+    ? logs.filter(l => l.is_anomaly || l.ml_inference?.is_anomaly)
+    : logs;
 
   return (
     <div className="min-h-screen text-slate-300 relative font-sans overflow-x-hidden">
@@ -341,7 +386,7 @@ export default function App() {
             {/* 4. Live SOC Defense Operations Console */}
             <SocConsole
               stats={stats}
-              logs={logs}
+              logs={displayedLogs}
               onGenerateSample={handleGenerateSample}
               onClearLogs={handleClearLogs}
               isGenerating={isGenerating}
@@ -374,6 +419,13 @@ export default function App() {
         <AlertCenterModal
           isOpen={alertModalOpen}
           onClose={() => setAlertModalOpen(false)}
+          alerts={alerts}
+          onClearAlerts={() => {
+            setAlerts([]);
+            setAlertCount(0);
+          }}
+          config={alertConfig}
+          onSaveConfig={(cfg) => setAlertConfig(cfg)}
         />
       </main>
 
