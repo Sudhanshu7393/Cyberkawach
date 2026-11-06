@@ -8,9 +8,11 @@
   }
 
   body {
-    background-color: #080B11;
+    background-color: #070A12;
     background-image: 
-      radial-gradient(ellipse at center, rgba(8, 11, 17, 0.65) 0%, rgba(8, 11, 17, 0.92) 80%),
+      radial-gradient(ellipse 80% 50% at 50% -20%, rgba(245, 158, 11, 0.08), transparent),
+      radial-gradient(ellipse 60% 40% at 90% 20%, rgba(16, 185, 129, 0.05), transparent),
+      radial-gradient(ellipse 70% 60% at 10% 60%, rgba(59, 130, 246, 0.05), transparent),
       url('/cyber_circuit_bg.png');
     background-position: center top;
     background-size: cover;
@@ -24,18 +26,50 @@
   }
 
   h1, h2, h3, h4, h5, h6 {
-    font-family: 'Plus Jakarta Sans', 'Inter', sans-serif;
+    font-family: 'Plus Jakarta Sans', 'Inter', -apple-system, sans-serif;
     letter-spacing: -0.025em;
   }
 
   code, pre, .font-mono {
-    font-family: 'JetBrains Mono', monospace;
+    font-family: 'JetBrains Mono', 'Fira Code', monospace;
   }
+}
+
+/* Senior Craft Glassmorphism & Depth */
+.glass-panel {
+  background: rgba(13, 18, 30, 0.72);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  box-shadow: 
+    0 1px 1px 0 rgba(255, 255, 255, 0.05) inset,
+    0 20px 40px -20px rgba(0, 0, 0, 0.7);
+}
+
+.glass-card-interactive {
+  background: rgba(15, 22, 36, 0.65);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  box-shadow: 
+    0 1px 1px 0 rgba(255, 255, 255, 0.04) inset,
+    0 10px 25px -10px rgba(0, 0, 0, 0.5);
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.glass-card-interactive:hover {
+  border-color: rgba(245, 158, 11, 0.35);
+  background: rgba(20, 29, 48, 0.85);
+  transform: translateY(-2px);
+  box-shadow: 
+    0 1px 1px 0 rgba(255, 255, 255, 0.08) inset,
+    0 20px 35px -15px rgba(0, 0, 0, 0.7),
+    0 0 25px rgba(245, 158, 11, 0.1);
 }
 
 /* Polished Card Containers */
 .cyber-card {
-  background: rgba(15, 20, 29, 0.78);
+  background: rgba(13, 18, 30, 0.78);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
   border: 1px solid rgba(255, 255, 255, 0.08);
@@ -43,20 +77,29 @@
 }
 
 .cyber-card-hover {
-  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .cyber-card-hover:hover {
   border-color: rgba(245, 158, 11, 0.3);
   box-shadow: 0 20px 40px -15px rgba(0, 0, 0, 0.6), 0 0 20px rgba(245, 158, 11, 0.08);
+  transform: translateY(-2px);
+}
+
+/* Smooth tactile button press effect */
+.btn-tactile {
+  transition: all 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.btn-tactile:active {
+  transform: scale(0.97);
 }
 
 ::-webkit-scrollbar {
-  width: 5px;
-  height: 5px;
+  width: 6px;
+  height: 6px;
 }
 ::-webkit-scrollbar-track {
-  background: #080B11;
+  background: #070A12;
 }
 ::-webkit-scrollbar-thumb {
   background: #1E293B;

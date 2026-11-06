@@ -15,7 +15,11 @@ import {
   ChevronDown,
   ChevronUp,
   Copy,
-  CheckCircle2
+  CheckCircle2,
+  Sparkles,
+  Server,
+  Layers,
+  ArrowUpRight
 } from 'lucide-react';
 import TimelineChart from './TimelineChart';
 
@@ -37,10 +41,38 @@ export default function SocConsole({
   const [copiedId, setCopiedId] = useState(null);
 
   const scenarioButtons = [
-    { id: 'normal', name: 'Safe Session (HTTP/80)', desc: '14.5MB browsing at 2PM', type: 'safe' },
-    { id: 'bruteforce', name: 'Auth Brute-Force Spray', desc: '18 failed logins at 3AM', type: 'danger' },
-    { id: 'exfiltration', name: '6.2GB Data Exfil Spike', desc: 'Off-hours upload spike', type: 'danger' },
-    { id: 'ddos', name: 'SYN Flood / Bot Burst', desc: '2,100 req/min burst', type: 'danger' }
+    { 
+      id: 'normal', 
+      name: 'Peaceful User Session', 
+      tag: 'Legitimate', 
+      desc: '14.5MB browsing docs at 2:00 PM', 
+      type: 'safe',
+      icon: ShieldCheck
+    },
+    { 
+      id: 'bruteforce', 
+      name: 'Credential Spray Attack', 
+      tag: 'Intrusion', 
+      desc: '18 failed logins at 3:00 AM (RU proxy)', 
+      type: 'danger',
+      icon: Flame
+    },
+    { 
+      id: 'exfiltration', 
+      name: '6.2GB Data Exfiltration', 
+      tag: 'Data Leak', 
+      desc: 'Severe off-hours upload spike to CN', 
+      type: 'danger',
+      icon: AlertTriangle
+    },
+    { 
+      id: 'ddos', 
+      name: 'SYN Flood / Bot Burst', 
+      tag: 'DoS Flood', 
+      desc: '2,100 req/min synthetic bot stream', 
+      type: 'danger',
+      icon: Zap
+    }
   ];
 
   const handleCopyJson = (log) => {
@@ -50,7 +82,7 @@ export default function SocConsole({
   };
 
   const handleExportCsv = () => {
-    if (!logs || logs.length === 0) return alert('No logs to export');
+    if (!logs || logs.length === 0) return alert('No logs available to export yet. Generate some telemetry first.');
     const headers = ['ID', 'User_ID', 'IP_Address', 'Country', 'Login_Hour', 'Download_MB', 'Upload_MB', 'Failed_Logins', 'Requests_Per_Min', 'Risk_Score', 'Is_Anomaly', 'Root_Cause', 'Timestamp'];
     const rows = logs.map(l => [
       l.id,
@@ -71,7 +103,7 @@ export default function SocConsole({
     const encodedUri = encodeURI(csvContent);
     const link = document.createElement('a');
     link.setAttribute('href', encodedUri);
-    link.setAttribute('download', `network_incident_report_${Date.now()}.csv`);
+    link.setAttribute('download', `cyberkawach_telemetry_${Date.now()}.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -79,30 +111,37 @@ export default function SocConsole({
 
   return (
     <div id="soc-console" className="space-y-8 text-left font-sans">
+      
       {/* 1. Attack Scenario Trigger Dock */}
-      <div className="p-6 rounded-3xl bg-[#151D2A] border border-slate-800 shadow-2xl space-y-4">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+      <div className="p-6 sm:p-7 rounded-3xl glass-panel space-y-5">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
-            <h3 className="text-base font-bold text-white flex items-center gap-2">
-              <Zap className="w-4 h-4 text-amber-400" />
-              <span>Simulate Network Traffic Scenarios</span>
-            </h3>
-            <p className="text-xs text-slate-400 mt-0.5 font-sans">
-              Inject synthetic flow vectors into the live Isolation Forest pipeline.
+            <div className="flex items-center gap-2">
+              <span className="p-1 rounded-lg bg-amber-500/10 text-amber-400 border border-amber-500/20">
+                <Zap className="w-4 h-4" />
+              </span>
+              <h3 className="text-base font-bold text-white font-sans">
+                Interactive Attack Simulation Dock
+              </h3>
+            </div>
+            <p className="text-xs text-slate-400 mt-1 font-sans">
+              Test how the unsupervised Isolation Forest behaves when encountering synthetic intrusions.
             </p>
           </div>
 
-          <div className="flex items-center gap-2">
+          {/* Quick Actions */}
+          <div className="flex items-center gap-2.5">
             <button
               onClick={() => onGenerateSample(8, 0.25)}
               disabled={isGenerating}
-              className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-mono border border-slate-700 transition cursor-pointer disabled:opacity-50"
+              className="btn-tactile px-4 py-2 rounded-xl bg-slate-800/90 hover:bg-slate-700 text-slate-200 text-xs font-mono border border-white/[0.08] transition cursor-pointer disabled:opacity-50 flex items-center gap-1.5 shadow-sm"
             >
-              {isGenerating ? 'Injecting 8 Packets...' : '+ Ingest 8 Packets'}
+              <Cpu className="w-3.5 h-3.5 text-amber-400" />
+              <span>{isGenerating ? 'Injecting Packets...' : '+ Ingest 8 Packets'}</span>
             </button>
             <button
               onClick={handleExportCsv}
-              className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-amber-400 text-xs font-mono border border-slate-700 transition cursor-pointer flex items-center gap-1.5"
+              className="btn-tactile px-4 py-2 rounded-xl bg-slate-800/90 hover:bg-slate-700 text-amber-400 text-xs font-mono border border-white/[0.08] transition cursor-pointer flex items-center gap-1.5 shadow-sm"
             >
               <FileSpreadsheet className="w-3.5 h-3.5" />
               <span>Export CSV</span>
@@ -110,119 +149,159 @@ export default function SocConsole({
           </div>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 pt-1">
-          {scenarioButtons.map((sc) => (
-            <button
-              key={sc.id}
-              onClick={() => onTriggerScenario && onTriggerScenario(sc.id)}
-              className={`p-3.5 rounded-2xl border text-left transition cursor-pointer ${
-                sc.type === 'safe'
-                  ? 'bg-[#0D1117] hover:bg-[#111722] border-emerald-500/30 hover:border-emerald-500/60'
-                  : 'bg-[#0D1117] hover:bg-[#111722] border-rose-500/30 hover:border-rose-500/60'
-              }`}
-            >
-              <div className="flex items-center justify-between mb-1">
-                <span className={`text-xs font-bold font-mono ${sc.type === 'safe' ? 'text-emerald-400' : 'text-rose-400'}`}>
-                  {sc.name}
+        {/* 4 Interactive Simulation Cards */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5 pt-1">
+          {scenarioButtons.map((sc) => {
+            const Icon = sc.icon;
+            const isSafe = sc.type === 'safe';
+            return (
+              <button
+                key={sc.id}
+                onClick={() => onTriggerScenario && onTriggerScenario(sc.id)}
+                className={`p-4 rounded-2xl border text-left transition-all duration-200 cursor-pointer group flex flex-col justify-between space-y-3 ${
+                  isSafe
+                    ? 'bg-[#0A1019]/90 hover:bg-[#0E1624] border-emerald-500/25 hover:border-emerald-500/50 shadow-sm'
+                    : 'bg-[#0A1019]/90 hover:bg-[#150E18] border-rose-500/25 hover:border-rose-500/50 shadow-sm'
+                }`}
+              >
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <span className={`text-[10px] font-mono px-2 py-0.5 rounded-full font-bold border ${
+                      isSafe 
+                        ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30' 
+                        : 'bg-rose-500/10 text-rose-400 border-rose-500/30'
+                    }`}>
+                      {sc.tag}
+                    </span>
+                    <span className="p-1 rounded-lg bg-slate-800/60 text-slate-400 group-hover:text-white transition-colors">
+                      <Play className="w-3 h-3 group-hover:translate-x-0.5 transition-transform" />
+                    </span>
+                  </div>
+                  <span className="text-xs font-bold text-white block group-hover:text-amber-400 transition-colors">
+                    {sc.name}
+                  </span>
+                </div>
+                <span className="text-[11px] text-slate-400 block font-sans leading-tight">
+                  {sc.desc}
                 </span>
-                <Play className="w-3 h-3 text-slate-400" />
-              </div>
-              <span className="text-[11px] text-slate-400 block font-sans">{sc.desc}</span>
-            </button>
-          ))}
+              </button>
+            );
+          })}
         </div>
       </div>
 
-      {/* 2. Main Timeline Graph */}
-      <div className="p-6 rounded-3xl bg-[#151D2A] border border-slate-800 shadow-2xl space-y-4">
-        <div className="flex items-center justify-between border-b border-slate-800 pb-4">
+      {/* 2. Main Timeline Graph & Activity Stream */}
+      <div className="p-6 sm:p-7 rounded-3xl glass-panel space-y-6">
+        
+        {/* Timeline Header & Filters */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-white/[0.07] pb-4">
           <div>
             <h3 className="text-base font-bold text-white flex items-center gap-2">
               <Clock className="w-4 h-4 text-amber-400" />
-              <span>Real-Time Network Flow Risk Timeline</span>
+              <span>Real-Time Anomaly Waveform & Ingress Feed</span>
             </h3>
-            <p className="text-xs text-slate-400 mt-0.5 font-sans">
-              Anomaly score distribution over sequential session timestamps.
-            </p>
-          </div>
-        </div>
-
-        <div className="h-64 sm:h-72 w-full pt-2">
-          <TimelineChart timelineData={stats?.timeline || []} />
-        </div>
-      </div>
-
-      {/* 3. Live Telemetry Logs Table */}
-      <div className="p-6 rounded-3xl bg-[#151D2A] border border-slate-800 shadow-2xl space-y-4">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-800 pb-4">
-          <div>
-            <h3 className="text-base font-bold text-white flex items-center gap-2">
-              <Cpu className="w-4 h-4 text-amber-400" />
-              <span>Classified Network Session Logs</span>
-            </h3>
-            <p className="text-xs text-slate-400 mt-0.5 font-sans">
-              Click any log row below to inspect its <strong>full 7-feature forensic breakdown & root cause</strong>.
+            <p className="text-xs text-slate-400 mt-0.5">
+              Continuously parsing 7 flow dimensions across active network connections.
             </p>
           </div>
 
+          {/* Filter Pills */}
           <div className="flex items-center gap-2">
-            {/* Filter */}
-            <div className="inline-flex rounded-xl bg-slate-900 border border-slate-800 p-1 text-xs font-mono">
+            <div className="flex items-center p-1 rounded-xl bg-slate-900/80 border border-white/[0.08] text-xs font-mono">
               <button
                 onClick={() => setActiveFilter('all')}
-                className={`px-3 py-1 rounded-lg transition cursor-pointer ${
-                  activeFilter === 'all' ? 'bg-slate-800 text-white font-bold' : 'text-slate-400'
+                className={`px-3 py-1.5 rounded-lg transition cursor-pointer ${
+                  activeFilter === 'all'
+                    ? 'bg-amber-500 text-slate-950 font-bold'
+                    : 'text-slate-400 hover:text-slate-200'
                 }`}
               >
-                All Flows
+                All Flows ({logs.length})
               </button>
               <button
                 onClick={() => setActiveFilter('anomalies')}
-                className={`px-3 py-1 rounded-lg transition cursor-pointer ${
-                  activeFilter === 'anomalies' ? 'bg-rose-500/20 text-rose-300 font-bold' : 'text-slate-400'
+                className={`px-3 py-1.5 rounded-lg transition cursor-pointer flex items-center gap-1.5 ${
+                  activeFilter === 'anomalies'
+                    ? 'bg-rose-500 text-white font-bold'
+                    : 'text-slate-400 hover:text-rose-400'
                 }`}
               >
-                Anomalies Only
+                <span>Anomalies Only</span>
+                {stats?.anomalies_detected > 0 && (
+                  <span className="w-1.5 h-1.5 rounded-full bg-rose-400 animate-pulse" />
+                )}
               </button>
             </div>
 
-            {logs.length > 0 && (
-              <button
-                onClick={onClearLogs}
-                disabled={isClearing}
-                className="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-rose-400 border border-slate-700 transition cursor-pointer"
-                title="Clear Logs"
-              >
-                <Trash2 className="w-4 h-4" />
-              </button>
-            )}
+            <button
+              onClick={onClearLogs}
+              disabled={isClearing || logs.length === 0}
+              title="Reset telemetry ledger"
+              className="p-2 rounded-xl bg-slate-900/80 hover:bg-rose-500/10 text-slate-400 hover:text-rose-400 border border-white/[0.08] hover:border-rose-500/30 transition cursor-pointer disabled:opacity-40"
+            >
+              <Trash2 className="w-4 h-4" />
+            </button>
           </div>
         </div>
 
-        {/* Table */}
+        {/* Detailed Timeline Waveform Canvas */}
+        <div className="p-4 rounded-2xl bg-[#080C14]/90 border border-white/[0.06] space-y-2">
+          <div className="flex items-center justify-between text-xs font-mono text-slate-400">
+            <span className="flex items-center gap-1.5">
+              <span className="w-2 h-2 rounded-full bg-amber-400" />
+              <span>Anomaly Risk Score Curve (0 = Normal, 100 = Critical Intrusion)</span>
+            </span>
+            <span className="text-[11px] text-slate-500">Last 15 Observations</span>
+          </div>
+          <div className="w-full h-44">
+            <TimelineChart timelineData={stats?.timeline || []} isMini={false} />
+          </div>
+        </div>
+
+        {/* Telemetry Table */}
         {logs.length === 0 ? (
-          <div className="text-center py-12 text-slate-500 text-xs font-mono border border-dashed border-slate-800 rounded-2xl">
-            No network logs in feed. Click "+ Ingest 8 Packets" or trigger a scenario above.
+          /* Humanized Empty State */
+          <div className="text-center py-14 px-4 rounded-2xl bg-[#080C14]/50 border border-dashed border-white/[0.08] space-y-3">
+            <div className="w-12 h-12 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-amber-400 flex items-center justify-center mx-auto">
+              <Radio className="w-6 h-6 animate-pulse" />
+            </div>
+            <div>
+              <h4 className="text-sm font-bold text-white font-sans">
+                Telemetry Radar is in Standby Mode
+              </h4>
+              <p className="text-xs text-slate-400 max-w-md mx-auto mt-1 font-sans leading-relaxed">
+                No network packets parsed yet. Click <strong>"Start Live Network Stream"</strong> or trigger an attack scenario above to observe real-time Isolation Forest evaluation.
+              </p>
+            </div>
+            <div className="pt-2">
+              <button
+                onClick={() => setLiveStreamActive(true)}
+                className="btn-tactile px-5 py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 text-slate-950 font-bold text-xs font-sans shadow-md hover:from-amber-400 hover:to-amber-500 cursor-pointer inline-flex items-center gap-2"
+              >
+                <Radio className="w-3.5 h-3.5" />
+                <span>Start Live Ingress Stream</span>
+              </button>
+            </div>
           </div>
         ) : (
-          <div className="overflow-x-auto">
+          <div className="overflow-x-auto rounded-2xl border border-white/[0.06] bg-[#080C14]/80">
             <table className="w-full text-left text-xs font-mono">
               <thead>
-                <tr className="border-b border-slate-800 text-slate-400 uppercase text-[11px]">
-                  <th className="py-2.5 px-3">Verdict</th>
-                  <th className="py-2.5 px-3">User ID</th>
-                  <th className="py-2.5 px-3">IP Address</th>
-                  <th className="py-2.5 px-3">Risk Score</th>
-                  <th className="py-2.5 px-3">Primary Root Cause</th>
-                  <th className="py-2.5 px-3">Timestamp</th>
-                  <th className="py-2.5 px-3 text-right">Details</th>
+                <tr className="border-b border-white/[0.08] text-slate-400 uppercase text-[11px] bg-slate-900/60">
+                  <th className="py-3 px-4">Evaluation</th>
+                  <th className="py-3 px-4">Subject</th>
+                  <th className="py-3 px-4">Source IP</th>
+                  <th className="py-3 px-4">Risk Metric</th>
+                  <th className="py-3 px-4">Primary Anomaly Reason</th>
+                  <th className="py-3 px-4">Time</th>
+                  <th className="py-3 px-4 text-right">Forensics</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-800/60 text-slate-300">
+              <tbody className="divide-y divide-white/[0.05] text-slate-300">
                 {logs.map((log) => {
                   const isAnomaly = log.ml_inference?.is_anomaly || log.is_anomaly;
-                  const score = log.ml_inference?.risk_score ?? log.risk_score;
-                  const reason = log.ml_inference?.root_cause || log.root_cause || (isAnomaly ? 'Statistical flow deviation' : 'Normal baseline session');
+                  const score = log.ml_inference?.risk_score ?? log.risk_score ?? 10;
+                  const reason = log.ml_inference?.root_cause || log.root_cause || (isAnomaly ? 'Off-hours flow deviation' : 'Normal baseline session');
                   const isExpanded = selectedLogId === log.id;
 
                   return (
@@ -230,31 +309,41 @@ export default function SocConsole({
                       <tr 
                         onClick={() => setSelectedLogId(isExpanded ? null : log.id)}
                         className={`hover:bg-slate-800/40 transition cursor-pointer ${
-                          isExpanded ? 'bg-slate-800/50' : ''
+                          isExpanded ? 'bg-slate-800/60' : ''
                         }`}
                       >
-                        <td className="py-3 px-3 whitespace-nowrap">
-                          <span className={`px-2.5 py-1 rounded-md text-[10px] font-extrabold border ${
+                        <td className="py-3.5 px-4 whitespace-nowrap">
+                          <span className={`px-2.5 py-1 rounded-full text-[10px] font-extrabold border inline-flex items-center gap-1 ${
                             isAnomaly
-                              ? 'bg-rose-500/15 text-rose-400 border-rose-500/30'
-                              : 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30'
+                              ? 'bg-rose-500/15 text-rose-300 border-rose-500/40'
+                              : 'bg-emerald-500/15 text-emerald-300 border-emerald-500/40'
                           }`}>
-                            {isAnomaly ? '🚨 ANOMALY' : '✓ SAFE'}
+                            <span className={`w-1.5 h-1.5 rounded-full ${isAnomaly ? 'bg-rose-400' : 'bg-emerald-400'}`} />
+                            <span>{isAnomaly ? 'ANOMALY' : 'NORMAL'}</span>
                           </span>
                         </td>
-                        <td className="py-3 px-3 font-bold text-white">{log.user_id}</td>
-                        <td className="py-3 px-3 text-slate-400">{log.ip_address}</td>
-                        <td className="py-3 px-3 font-bold">
+                        <td className="py-3.5 px-4 font-bold text-white whitespace-nowrap">{log.user_id}</td>
+                        <td className="py-3.5 px-4 text-slate-300 whitespace-nowrap">
+                          <span>{log.ip_address}</span>
+                          {log.country && (
+                            <span className="ml-1.5 text-[10px] px-1.5 py-0.2 rounded bg-slate-800 text-slate-400 border border-slate-700">
+                              {log.country}
+                            </span>
+                          )}
+                        </td>
+                        <td className="py-3.5 px-4 font-bold whitespace-nowrap">
                           <span className={score >= 50 ? 'text-rose-400' : 'text-emerald-400'}>
                             {score} <span className="text-[10px] text-slate-500">/ 100</span>
                           </span>
                         </td>
-                        <td className="py-3 px-3 text-slate-300 max-w-xs truncate">{reason}</td>
-                        <td className="py-3 px-3 text-slate-500 text-[11px] whitespace-nowrap">
-                          {new Date(log.timestamp).toLocaleTimeString()}
+                        <td className="py-3.5 px-4 text-slate-300 max-w-xs truncate font-sans text-xs">
+                          {reason}
                         </td>
-                        <td className="py-3 px-3 text-right">
-                          <button className="p-1 rounded bg-slate-800 text-slate-300 hover:text-amber-400 transition">
+                        <td className="py-3.5 px-4 text-slate-400 text-[11px] whitespace-nowrap">
+                          {new Date(log.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+                        </td>
+                        <td className="py-3.5 px-4 text-right">
+                          <button className="p-1 rounded-lg bg-slate-800/80 text-slate-400 hover:text-white transition">
                             {isExpanded ? <ChevronUp className="w-4 h-4 text-amber-400" /> : <ChevronDown className="w-4 h-4" />}
                           </button>
                         </td>
@@ -263,65 +352,74 @@ export default function SocConsole({
                       {/* Expandable Forensic Breakdown */}
                       {isExpanded && (
                         <tr>
-                          <td colSpan={7} className="p-0 bg-[#0D1117] border-y border-amber-500/20">
-                            <div className="p-5 space-y-4">
-                              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-800 pb-3">
-                                <span className="text-xs font-bold text-white font-mono uppercase tracking-wider">
-                                  Forensic Vector Matrix &bull; {log.user_id}
-                                </span>
+                          <td colSpan={7} className="p-0 bg-[#090D16] border-y border-amber-500/25">
+                            <div className="p-6 space-y-4">
+                              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-white/[0.08] pb-3">
+                                <div>
+                                  <span className="text-xs font-bold text-white font-mono uppercase tracking-wider flex items-center gap-2">
+                                    <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+                                    <span>Forensic Vector Matrix &bull; {log.user_id}</span>
+                                  </span>
+                                  <span className="text-[11px] text-slate-400 font-sans block mt-0.5">
+                                    7 dimensions analyzed by recursive tree partitioning
+                                  </span>
+                                </div>
 
                                 <button
                                   onClick={(e) => { e.stopPropagation(); handleCopyJson(log); }}
-                                  className="px-3 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-[11px] font-mono border border-slate-700 flex items-center gap-1.5 transition cursor-pointer"
+                                  className="btn-tactile px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-mono border border-white/[0.08] flex items-center gap-1.5 transition cursor-pointer self-start"
                                 >
                                   {copiedId === log.id ? <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
-                                  <span>{copiedId === log.id ? 'JSON Copied!' : 'Copy Telemetry JSON'}</span>
+                                  <span>{copiedId === log.id ? 'Copied to Clipboard!' : 'Copy Telemetry JSON'}</span>
                                 </button>
                               </div>
 
-                              {/* 7 Feature Vector Matrix */}
-                              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
-                                <div className="p-3 rounded-xl bg-[#151D2A] border border-slate-800">
-                                  <span className="text-[10px] text-slate-400 block uppercase">1. Access Hour</span>
-                                  <span className="text-white font-bold">{log.login_hour ?? 14}:00 hrs</span>
+                              {/* 7 Feature Grid */}
+                              <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-2.5 font-mono text-center">
+                                <div className="p-2.5 rounded-xl bg-slate-900/90 border border-white/[0.06]">
+                                  <span className="text-[10px] text-slate-400 block uppercase font-sans">Login Hour</span>
+                                  <span className="text-sm font-bold text-white">{log.login_hour ?? 12}:00</span>
                                 </div>
-                                <div className="p-3 rounded-xl bg-[#151D2A] border border-slate-800">
-                                  <span className="text-[10px] text-slate-400 block uppercase">2. Country Origin</span>
-                                  <span className="text-white font-bold">{log.country || 'IN'} {log.country_change_flag ? '(Origin Shift)' : '(Standard)'}</span>
+                                <div className="p-2.5 rounded-xl bg-slate-900/90 border border-white/[0.06]">
+                                  <span className="text-[10px] text-slate-400 block uppercase font-sans">Download</span>
+                                  <span className="text-sm font-bold text-white">{log.download_mb ?? 0} MB</span>
                                 </div>
-                                <div className="p-3 rounded-xl bg-[#151D2A] border border-slate-800">
-                                  <span className="text-[10px] text-slate-400 block uppercase">3. Download Volume</span>
-                                  <span className="text-white font-bold">{log.download_mb ?? 0} MB</span>
+                                <div className="p-2.5 rounded-xl bg-slate-900/90 border border-white/[0.06]">
+                                  <span className="text-[10px] text-slate-400 block uppercase font-sans">Upload</span>
+                                  <span className={`text-sm font-bold ${(log.upload_mb || 0) > 1000 ? 'text-rose-400 font-extrabold' : 'text-white'}`}>
+                                    {log.upload_mb ?? 0} MB
+                                  </span>
                                 </div>
-                                <div className="p-3 rounded-xl bg-[#151D2A] border border-slate-800">
-                                  <span className="text-[10px] text-slate-400 block uppercase">4. Upload Volume</span>
-                                  <span className={`font-bold ${(log.upload_mb || 0) > 1000 ? 'text-rose-400' : 'text-white'}`}>{log.upload_mb ?? 0} MB</span>
+                                <div className="p-2.5 rounded-xl bg-slate-900/90 border border-white/[0.06]">
+                                  <span className="text-[10px] text-slate-400 block uppercase font-sans">Duration</span>
+                                  <span className="text-sm font-bold text-white">{log.session_duration_sec ?? 0}s</span>
                                 </div>
-                                <div className="p-3 rounded-xl bg-[#151D2A] border border-slate-800">
-                                  <span className="text-[10px] text-slate-400 block uppercase">5. Session Duration</span>
-                                  <span className="text-white font-bold">{log.session_duration_sec ?? 0} sec</span>
+                                <div className="p-2.5 rounded-xl bg-slate-900/90 border border-white/[0.06]">
+                                  <span className="text-[10px] text-slate-400 block uppercase font-sans">Failed Passwords</span>
+                                  <span className={`text-sm font-bold ${(log.failed_login_count || 0) > 3 ? 'text-rose-400 font-extrabold' : 'text-white'}`}>
+                                    {log.failed_login_count ?? 0}
+                                  </span>
                                 </div>
-                                <div className="p-3 rounded-xl bg-[#151D2A] border border-slate-800">
-                                  <span className="text-[10px] text-slate-400 block uppercase">6. Failed Logins</span>
-                                  <span className={`font-bold ${(log.failed_login_count || 0) > 3 ? 'text-rose-400' : 'text-emerald-400'}`}>{log.failed_login_count ?? 0} attempts</span>
+                                <div className="p-2.5 rounded-xl bg-slate-900/90 border border-white/[0.06]">
+                                  <span className="text-[10px] text-slate-400 block uppercase font-sans">Req Rate/Min</span>
+                                  <span className={`text-sm font-bold ${(log.requests_per_minute || 0) > 500 ? 'text-rose-400 font-extrabold' : 'text-white'}`}>
+                                    {log.requests_per_minute ?? 0}
+                                  </span>
                                 </div>
-                                <div className="p-3 rounded-xl bg-[#151D2A] border border-slate-800">
-                                  <span className="text-[10px] text-slate-400 block uppercase">7. Request Rate</span>
-                                  <span className={`font-bold ${(log.requests_per_minute || 0) > 300 ? 'text-rose-400' : 'text-white'}`}>{log.requests_per_minute ?? 0} req/min</span>
-                                </div>
-                                <div className="p-3 rounded-xl bg-[#151D2A] border border-slate-800">
-                                  <span className="text-[10px] text-slate-400 block uppercase">Client Device</span>
-                                  <span className="text-slate-300 font-semibold truncate block">{log.device || 'Workstation Node'}</span>
+                                <div className="p-2.5 rounded-xl bg-slate-900/90 border border-white/[0.06]">
+                                  <span className="text-[10px] text-slate-400 block uppercase font-sans">Geo Delta</span>
+                                  <span className={`text-sm font-bold ${log.country_change_flag ? 'text-amber-400' : 'text-emerald-400'}`}>
+                                    {log.country_change_flag ? 'Changed' : 'Same'}
+                                  </span>
                                 </div>
                               </div>
 
-                              {/* Mitigation Banner */}
-                              <div className={`p-3.5 rounded-xl border text-xs flex items-start gap-2.5 ${
-                                isAnomaly ? 'bg-rose-500/10 border-rose-500/30 text-rose-200' : 'bg-emerald-500/10 border-emerald-500/30 text-emerald-200'
-                              }`}>
-                                <div className="space-y-0.5 font-sans">
-                                  <strong className="font-mono uppercase block text-[11px]">{isAnomaly ? 'Isolation Forest Threat Assessment' : 'Verified Safe Baseline'}</strong>
-                                  <p className="text-slate-300">{reason}</p>
+                              {/* Forensic Summary Alert Note */}
+                              <div className="p-3.5 rounded-xl bg-slate-900/60 border border-white/[0.06] text-xs text-slate-300 font-sans flex items-start gap-2.5">
+                                <Cpu className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
+                                <div>
+                                  <strong className="text-white block font-semibold">Isolation Explanation:</strong>
+                                  <span className="text-slate-400">{reason}</span>
                                 </div>
                               </div>
                             </div>
@@ -335,6 +433,7 @@ export default function SocConsole({
             </table>
           </div>
         )}
+
       </div>
     </div>
   );

@@ -9,6 +9,7 @@ import UrlScanner from './pages/UrlScanner';
 import AlertCenterModal from './components/AlertCenterModal';
 import CyberKawachLogo from './components/CyberKawachLogo';
 import { generateRandomPacket, evaluateFlowClient, createAlertRecord } from './utils/engine';
+import { ShieldAlert, X, ArrowRight } from 'lucide-react';
 
 const isLocalhost = typeof window !== 'undefined' && 
   (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
@@ -68,10 +69,10 @@ export default function App() {
     setAlertCount(c => c + 1);
 
     setAlertToast({
-      title: '🚨 Critical Intrusion Detected!',
-      msg: `Security alert email & SMS auto-dispatched for IP ${payload.ip_address} (${payload.country || 'Unknown'})`
+      title: '🚨 Critical Intrusion Isolated',
+      msg: `Security warning dispatched for IP ${payload.ip_address} (${payload.country || 'Unknown'})`
     });
-    setTimeout(() => setAlertToast(null), 5000);
+    setTimeout(() => setAlertToast(null), 5500);
 
     if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'granted') {
       new Notification('🚨 CyberKawach Security Alert', {
@@ -319,9 +320,9 @@ export default function App() {
       setAlertCount(c => c + newAlerts.length);
       setAlertToast({
         title: `🚨 ${newAlerts.length} Anomaly Dispatches`,
-        msg: `${newAlerts.length} high-risk deviation flow(s) flagged and alerts recorded.`
+        msg: `${newAlerts.length} high-risk deviation flow(s) flagged and recorded.`
       });
-      setTimeout(() => setAlertToast(null), 4000);
+      setTimeout(() => setAlertToast(null), 4500);
     }
     setIsGenerating(false);
   };
@@ -352,8 +353,9 @@ export default function App() {
     : logs;
 
   return (
-    <div className="min-h-screen text-slate-300 relative font-sans overflow-x-hidden">
-      {/* Navbar */}
+    <div className="min-h-screen text-slate-300 relative font-sans overflow-x-hidden selection:bg-amber-500/20 selection:text-amber-300">
+      
+      {/* Top Navbar */}
       <Navbar
         activeView={activeView}
         setActiveView={setActiveView}
@@ -367,7 +369,7 @@ export default function App() {
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 relative z-10">
         {activeView === 'home' && (
-          <div className="space-y-12">
+          <div className="space-y-12 sm:space-y-16">
             {/* 1. Hero Overview */}
             <HeroSection
               onStartStream={() => setLiveStreamActive(!liveStreamActive)}
@@ -405,14 +407,42 @@ export default function App() {
           <UrlScanner onBack={() => setActiveView('home')} />
         )}
 
-        {/* Real-Time Alert Toast Notification */}
+        {/* Real-Time Alert Toast Notification (Senior Designer Glass Pill) */}
         {alertToast && (
-          <div className="fixed bottom-6 right-6 z-50 p-4 rounded-2xl bg-rose-950/95 border border-rose-500/50 shadow-2xl text-left max-w-sm animate-bounce space-y-1">
+          <div className="fixed bottom-6 right-6 z-50 p-4 rounded-2xl bg-[#160B12]/95 border border-rose-500/40 shadow-2xl shadow-rose-950/60 backdrop-blur-xl text-left max-w-sm space-y-2 animate-in fade-in slide-in-from-bottom-4 duration-300">
             <div className="flex items-center justify-between">
-              <strong className="text-xs font-bold text-rose-300 font-mono uppercase">{alertToast.title}</strong>
-              <button onClick={() => setAlertModalOpen(true)} className="text-[10px] text-amber-400 font-bold hover:underline cursor-pointer">View Alert &rarr;</button>
+              <div className="flex items-center gap-2">
+                <span className="p-1 rounded-lg bg-rose-500/20 text-rose-400">
+                  <ShieldAlert className="w-3.5 h-3.5" />
+                </span>
+                <strong className="text-xs font-bold text-rose-300 font-sans tracking-wide">
+                  {alertToast.title}
+                </strong>
+              </div>
+              <button 
+                onClick={() => setAlertToast(null)} 
+                className="text-slate-400 hover:text-white transition p-0.5"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
             </div>
-            <p className="text-[11px] text-slate-200 font-sans leading-tight">{alertToast.msg}</p>
+            
+            <p className="text-[11px] text-slate-300 font-sans leading-relaxed">
+              {alertToast.msg}
+            </p>
+
+            <div className="pt-1 flex justify-end">
+              <button 
+                onClick={() => {
+                  setAlertToast(null);
+                  setAlertModalOpen(true);
+                }} 
+                className="text-xs text-amber-400 font-semibold hover:text-amber-300 cursor-pointer flex items-center gap-1 font-sans"
+              >
+                <span>View Dispatched Alert</span>
+                <ArrowRight className="w-3 h-3" />
+              </button>
+            </div>
           </div>
         )}
 
@@ -429,15 +459,15 @@ export default function App() {
         />
       </main>
 
-      {/* Clean Cybersecurity Production Footer */}
-      <footer className="border-t border-slate-800/80 bg-[#0B0F17] py-10 mt-20 text-xs text-slate-400 font-sans">
+      {/* Modern Cybersecurity Production Footer */}
+      <footer className="border-t border-white/[0.07] bg-[#070A12]/90 backdrop-blur-xl py-10 mt-20 text-xs text-slate-400 font-sans">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-6">
           <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
-            <div className="flex items-center gap-2.5">
-              <CyberKawachLogo className="w-6 h-6 shrink-0" />
+            <div className="flex items-center gap-3">
+              <CyberKawachLogo className="w-7 h-7 shrink-0" />
               <span className="text-sm font-bold text-white tracking-tight">CyberKawach</span>
-              <span className="text-[10px] font-mono uppercase px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 font-bold">
-                Dual-Layer Security Platform
+              <span className="text-[10px] font-mono tracking-wide px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/25 font-semibold">
+                Dual-Layer Active Defense
               </span>
             </div>
 
@@ -446,13 +476,13 @@ export default function App() {
               <span>&bull;</span>
               <span>Layer 2: URL Classifier</span>
               <span>&bull;</span>
-              <span className="text-emerald-400 font-semibold">● Services Live</span>
+              <span className="text-emerald-400 font-medium">● All Services Online</span>
             </div>
           </div>
 
-          <div className="pt-4 border-t border-slate-800/60 flex flex-col sm:flex-row items-center justify-between gap-2 text-slate-500 text-[11px] font-mono">
+          <div className="pt-4 border-t border-white/[0.06] flex flex-col sm:flex-row items-center justify-between gap-2 text-slate-500 text-[11px] font-mono">
             <div>
-              Anomaly Detection in Network Activities & Web Page Classification for Safer Browsing
+              Network Anomaly Detection & Webpage Threat Classification Platform
             </div>
             <div>
               Academic Mini Project &bull; BCS554
